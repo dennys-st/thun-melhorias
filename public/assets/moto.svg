@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Rodas -->
+  <circle cx="25" cy="65" r="15" fill="#1F2937" stroke="#4B5563" stroke-width="4"/>
+  <circle cx="75" cy="65" r="15" fill="#1F2937" stroke="#4B5563" stroke-width="4"/>
+  <!-- Chassi principal -->
+  <path d="M25 65 L45 35 L75 35" fill="none" stroke="#EF4444" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M75 65 L45 35" fill="none" stroke="#EF4444" stroke-width="8" stroke-linecap="round"/>
+  <!-- Guidão -->
+  <path d="M65 45 L75 25 L85 25" fill="none" stroke="#D1D5DB" stroke-width="6" stroke-linecap="round"/>
+  <!-- Tanque -->
+  <ellipse cx="55" cy="35" rx="15" ry="10" fill="#EF4444"/>
+  <!-- Assento -->
+  <path d="M35 35 L50 35" fill="none" stroke="#1F2937" stroke-width="12" stroke-linecap="round"/>
+  <!-- Farol -->
+  <circle cx="82" cy="40" r="6" fill="#FBBF24"/>
+</svg>

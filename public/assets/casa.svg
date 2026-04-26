@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Fundo da casa -->
+  <rect x="20" y="45" width="60" height="45" fill="#3B82F6" rx="5"/>
+  <!-- Telhado -->
+  <path d="M10 50 L50 15 L90 50 Z" fill="#EF4444"/>
+  <!-- Porta -->
+  <rect x="40" y="60" width="20" height="30" fill="#FBBF24" rx="2"/>
+  <!-- Maçaneta -->
+  <circle cx="55" cy="75" r="2" fill="#fff"/>
+  <!-- Janela -->
+  <rect x="25" y="55" width="10" height="10" fill="#93C5FD" rx="1"/>
+  <rect x="65" y="55" width="10" height="10" fill="#93C5FD" rx="1"/>
+</svg>

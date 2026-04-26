@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Corpo inferior -->
+  <rect x="10" y="45" width="80" height="25" fill="#3B82F6" rx="10"/>
+  <!-- Cabine -->
+  <path d="M25 45 L35 25 L65 25 L75 45 Z" fill="#60A5FA"/>
+  <!-- Janelas -->
+  <path d="M37 28 L48 28 L48 42 L29 42 Z" fill="#93C5FD"/>
+  <path d="M52 28 L63 28 L71 42 L52 42 Z" fill="#93C5FD"/>
+  <!-- Rodas -->
+  <circle cx="25" cy="70" r="12" fill="#1F2937"/>
+  <circle cx="25" cy="70" r="5" fill="#9CA3AF"/>
+  <circle cx="75" cy="70" r="12" fill="#1F2937"/>
+  <circle cx="75" cy="70" r="5" fill="#9CA3AF"/>
+  <!-- Farol -->
+  <circle cx="85" cy="55" r="4" fill="#FBBF24"/>
+</svg>
