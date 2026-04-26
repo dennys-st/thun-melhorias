@@ -14,6 +14,45 @@ const words = [
     "vou sair", "story", "trabalhar", "vou", "tudo bem ?", "to bem e você?", "nome"
 ];
 
+// Frases contextuais: SOMENTE palavras que já existem no vocabulário do app
+// Cada palavra usada aqui está na lista acima
+const contextPhrases = [
+    // trabalhar + eu / vou / hoje / amanhã / não / vamos / sim
+    "eu vou trabalhar",
+    "eu vou trabalhar hoje",
+    "eu vou trabalhar amanhã",
+    "não vou trabalhar hoje",
+    "não vou trabalhar amanhã",
+    "vamos trabalhar amanhã",
+    "vamos trabalhar hoje",
+    "sim vou trabalhar",
+    // vou + curtir / seguir / bloquear / apagar / excluir / aceitar
+    "vou curtir story",
+    "vou seguir você",
+    "vou bloquear ele",
+    "vou bloquear você",
+    "vou apagar story",
+    "vou excluir story",
+    "não vou aceitar",
+    "sim vou aceitar",
+    // lugares com vamos
+    "vamos cabaceiras",
+    "vamos mangabeira",
+    "vamos cruz das almas",
+    // coisas + meu / minha + lá
+    "meu carro lá",
+    "minha moto lá",
+    "meu carro moto lá",
+    // bom dia / boa tarde + vamos
+    "bom dia vamos trabalhar",
+    "boa tarde vamos sair",
+    // outras combinações naturais
+    "sim obrigado",
+    "não obrigado",
+    "ele curtir story",
+    "ela curtir story",
+];
+
 function getDailyShuffledWords() {
     const data = new Date();
     if (data.getHours() < 2) data.setDate(data.getDate() - 1);
@@ -29,6 +68,24 @@ function getDailyShuffledWords() {
 
 const readingWords = getDailyShuffledWords();
 const typingWords = [...words].sort(() => Math.random() - 0.5);
+
+// -- Typing2: Progressive builder --
+function buildTyping2Sequences(wordList) {
+    const seqs = [];
+    for (const item of wordList) {
+        const parts = item.trim().split(/\s+/).filter(p => p.length > 0);
+        if (parts.length <= 1) {
+            seqs.push([item]);
+        } else {
+            const steps = [];
+            for (let i = 1; i <= parts.length; i++) {
+                steps.push(parts.slice(0, i).join(' '));
+            }
+            seqs.push(steps);
+        }
+    }
+    return seqs;
+}
 
 // -- State --
 function getInitialScore() {
@@ -62,7 +119,10 @@ let state = {
     matchPairs: [],
     selectedMatch: null,
     matchedIds: [],
-    errorMatch: null
+    errorMatch: null,
+    typing2Sequences: buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5)),
+    typing2SeqIndex: 0,
+    typing2StepIndex: 0
 };
 
 // -- Utilities --
@@ -160,7 +220,8 @@ window.handleBack = () => {
 function renderHeader() {
     let title = "";
     if (state.view === 'reading') title = "Ler";
-    if (state.view === 'typing') title = "Digitar";
+    if (state.view === 'typing') title = "Digitar 1";
+    if (state.view === 'typing2') title = "Digitar 2";
     if (state.view === 'matching') title = "Ligar";
     
     const isHintVisible = !!document.getElementById('keyboard-hint-container')?.innerHTML;
@@ -201,21 +262,20 @@ function renderHeader() {
 function renderBottomNav() {
     return `
         <nav class="bottom-nav">
-            <div class="nav-item ${state.view === 'home' ? 'active' : ''}" onclick="window.setView('home')">
+            <div class="nav-item ${state.view === 'home' ? 'active' : ''}" onclick="window.setView('home')" title="Início">
                 <span class="nav-icon">🏠</span>
-                <span>Home</span>
             </div>
-            <div class="nav-item ${state.view === 'reading' ? 'active' : ''}" onclick="window.setView('reading')">
+            <div class="nav-item ${state.view === 'reading' ? 'active' : ''}" onclick="window.setView('reading')" title="Ler">
                 <span class="nav-icon">📖</span>
-                <span>Ler</span>
             </div>
-            <div class="nav-item ${state.view === 'typing' ? 'active' : ''}" onclick="window.setView('typing')">
+            <div class="nav-item ${state.view === 'typing' ? 'active' : ''}" onclick="window.setView('typing')" title="Digitar 1">
                 <span class="nav-icon">⌨️</span>
-                <span>Digitar</span>
             </div>
-            <div class="nav-item ${state.view === 'matching' ? 'active' : ''}" onclick="window.setView('matching')">
+            <div class="nav-item ${state.view === 'typing2' ? 'active' : ''}" onclick="window.setView('typing2')" title="Digitar 2">
+                <span class="nav-icon">🎧</span>
+            </div>
+            <div class="nav-item ${state.view === 'matching' ? 'active' : ''}" onclick="window.setView('matching')" title="Ligar">
                 <span class="nav-icon">🔗</span>
-                <span>Ligar</span>
             </div>
         </nav>
     `;
@@ -225,28 +285,39 @@ function HomeView() {
     return `
         <div class="home-container animate-fade" style="justify-content: center; height: 100%; display: flex; flex-direction: column; padding-top: 20px;">
             <div style="text-align: center; margin-bottom: 20px;">
-                <p style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Recorde de Hoje</p>
-                <h2 style="font-size: 2.5rem; color: #fbbf24;">⭐ ${state.dailyRecord}</h2>
+                <p style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px;">🏆 Recorde</p>
+                <h2 style="font-size: 2.8rem; color: #fbbf24;">⭐ ${state.dailyRecord}</h2>
             </div>
 
             <div class="menu-card ler" onclick="window.setView('reading')">
-                <div class="icon-box">📖</div>
-                <div>
-                    <h3>Ler</h3>
+                <div class="icon-box" style="font-size:2.2rem;">📖</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
+                    <h3>📖 Ler</h3>
                 </div>
             </div>
 
             <div class="menu-card ligar" onclick="window.setView('matching')" style="margin-top: 15px; border-color: var(--secondary);">
-                <div class="icon-box" style="background: rgba(236, 72, 153, 0.1); color: var(--secondary);">🔗</div>
-                <div>
-                    <h3>Ligar</h3>
+                <div class="icon-box" style="background: rgba(236, 72, 153, 0.1); color: var(--secondary); font-size:2.2rem;">🔗</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
+                    <h3>🔗 Ligar</h3>
                 </div>
             </div>
 
             <div class="menu-card digitar" onclick="window.setView('typing')" style="margin-top: 15px;">
-                <div class="icon-box">⌨️</div>
-                <div>
-                    <h3>Digitar</h3>
+                <div class="icon-box" style="font-size:2.2rem;">⌨️</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
+                    <h3>⌨️ Digitar 1</h3>
+                </div>
+            </div>
+
+            <div class="menu-card" onclick="window.setView('typing2')" style="margin-top: 15px; border-color: rgba(99,102,241,0.5);">
+                <div class="icon-box" style="background: rgba(99,102,241,0.15); font-size:2.2rem;">🎧</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
+                    <h3>🎧 Digitar 2</h3>
                 </div>
             </div>
         </div>
@@ -269,9 +340,9 @@ function ReadingView() {
     }).join('');
 
     let paginationHtml = [1, 2, 3, 4].map(p => `
-        <div class="nav-circle" 
-             style="${state.readingPage === p ? 'background: var(--primary); border-color: var(--primary);' : ''}"
-             onclick="window.setReadingPage(${p})">${p}</div>
+        <div class="nav-circle pagination-dot" 
+             style="${state.readingPage === p ? 'background: var(--primary); border-color: var(--primary); width:18px; height:18px;' : 'width:12px; height:12px;'}"
+             onclick="window.setReadingPage(${p})"></div>
     `).join('');
 
     return `
@@ -298,7 +369,7 @@ function TypingView() {
 
             <div style="position: relative; width: 100%;">
                 <div class="combo-badge ${state.combo > 1 ? 'combo-active' : ''}" style="top: -10px;">
-                    ${state.combo}x COMBO!
+                    ${'⭐'.repeat(Math.min(state.combo, 5))} ×${state.combo}
                 </div>
                 <div class="target-word-display" id="target-word" style="margin-bottom: 10px;">${currentWord}</div>
             </div>
@@ -310,7 +381,7 @@ function TypingView() {
             
             <div id="typing-feedback" class="feedback-msg" style="margin-top: 5px; height: 20px;"></div>
 
-            <button class="btn-action" onclick="window.checkTyping()" style="padding: 15px;">OK ✅</button>
+            <button class="btn-action btn-icon-only" onclick="window.checkTyping()" title="Verificar">✅</button>
 
             <div class="typing-nav" style="margin-top: 10px;">
                 <div class="nav-circle" style="width: 50px; height: 50px; font-size: 1.2rem;" onclick="window.prevTyping()">⬅</div>
@@ -331,11 +402,11 @@ function MatchingView() {
             "bom dia": "☀️", "boa noite": "🌙", "oi": "👋", 
             "beijo": "💋", "não": "❌", "Deus": "✝️", 
             "que hora": "⌚", 
-            "casa": "🏠", 
+            "casa": "/assets/casa.png", 
             "seguir": "https://i.postimg.cc/Qx9H3CDQ/Seguir.jpg", 
             "seguir de volta": "https://i.postimg.cc/gkXnWjp3/Seguir-de-volta.jpg",
             "curtir": "❤️", "bloquear": "🚫", "apagar": "🗑️",
-            "gasolina": "⛽", "carro": "🚗", "moto": "🏍️", "limão": "🍋"
+            "gasolina": "⛽", "carro": "/assets/carro.png", "moto": "/assets/moto.png", "limão": "/assets/limao.png"
         };
         const allWords = Object.keys(wordEmojis);
         const selected = allWords.sort(() => Math.random() - 0.5).slice(0, 2);
@@ -354,14 +425,15 @@ function MatchingView() {
     const isError = (id) => state.errorMatch && (state.errorMatch.id1 === id || state.errorMatch.id2 === id);
 
     const wordsHtml = state.matchWords.map(p => `
-        <div class="match-card ${state.matchedIds.includes(p.id) ? 'matched' : ''} ${state.selectedMatch?.type === 'word' && state.selectedMatch.id === p.id ? 'selected' : ''} ${isError(p.id) ? 'error animate-shake' : ''}" 
+        <div class="match-card match-word-card ${state.matchedIds.includes(p.id) ? 'matched' : ''} ${state.selectedMatch?.type === 'word' && state.selectedMatch.id === p.id ? 'selected' : ''} ${isError(p.id) ? 'error animate-shake' : ''}" 
              onclick="window.handleMatch('word', ${p.id})">
-            ${p.word}
+            <span class="match-touch-hint">👆</span>
+            <span>${p.word}</span>
         </div>
     `).join('');
 
     const imgsHtml = state.matchImages.map(p => {
-        const isUrl = p.emoji.startsWith('http');
+        const isUrl = p.emoji.startsWith('http') || p.emoji.startsWith('/');
         const content = isUrl 
             ? `<img src="${p.emoji}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">`
             : p.emoji;
@@ -378,13 +450,13 @@ function MatchingView() {
     return `
         <div class="matching-container animate-fade" style="position: relative;">
             <svg id="match-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5;"></svg>
-            <h2 style="text-align: center; margin-bottom: 20px; font-size: 1.2rem; color: var(--text-muted);">Ligue a palavra à imagem</h2>
-            <div style="display: flex; gap: 40px; justify-content: center; width: 100%; padding: 0 20px; position: relative; z-index: 10;">
-                <div style="display: flex; flex-direction: column; gap: 15px; flex: 1;" id="words-col">${wordsHtml}</div>
-                <div style="display: flex; flex-direction: column; gap: 15px; flex: 1;" id="imgs-col">${imgsHtml}</div>
+            <p class="match-subtitle">Toque na palavra e depois na imagem</p>
+            <div class="match-columns" style="position: relative; z-index: 10;">
+                <div class="match-col" id="words-col">${wordsHtml}</div>
+                <div class="match-col" id="imgs-col">${imgsHtml}</div>
             </div>
-            ${state.matchedIds.length === 2 ? `
-                <button class="btn-action" style="margin-top: 30px; position: relative; z-index: 20;" onclick="window.nextMatch()">Próxima Fase ➡</button>
+            ${state.matchedIds.length === state.matchPairs.length ? `
+                <button class="btn-action match-next-btn btn-icon-only" onclick="window.nextMatch()" title="Próxima fase">▶</button>
             ` : ''}
         </div>
     `;
@@ -473,6 +545,220 @@ window.nextMatch = () => {
     render();
 };
 
+// -- Typing2 View --
+function Typing2View() {
+    const seq = state.typing2Sequences[state.typing2SeqIndex];
+    const step = state.typing2StepIndex;
+    const totalSteps = seq.length;
+    const isPhrase = totalSteps > 1;
+    const currentTarget = seq[step];
+
+    // Build phrase display: previous words dim, new word highlighted
+    const parts = currentTarget.split(' ');
+    const phraseHtml = parts.map((word, i) => {
+        const isNew = isPhrase && i === parts.length - 1;
+        return `<span class="t2-word ${isNew ? 't2-word-new' : 't2-word-old'}">${word}</span>`;
+    }).join(' ');
+
+    // Progress dots (only for multi-step phrases)
+    const dotsHtml = isPhrase
+        ? seq.map((_, i) => `<div class="t2-dot ${i < step ? 't2-done' : i === step ? 't2-active' : ''}"></div>`).join('')
+        : `<span style="color:var(--text-muted); font-size:0.8rem;">${state.typing2SeqIndex + 1} / ${state.typing2Sequences.length}</span>`;
+
+    return `
+        <div class="typing-container animate-fade">
+
+            <div id="keyboard-hint-container" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-end; width: 100%; margin-bottom: 5px; min-height: 0;"></div>
+
+            <div style="position: relative; width: 100%;">
+                <div class="combo-badge ${state.combo > 1 ? 'combo-active' : ''}" style="top: -10px;">
+                    ${'⭐'.repeat(Math.min(state.combo, 5))} ×${state.combo}
+                </div>
+                <div class="target-word-display t2-phrase-display" id="target-word" style="margin-bottom: 10px;">
+                    ${phraseHtml}
+                </div>
+            </div>
+
+            <input type="text" id="typing2-input" class="typing-input" placeholder="..."
+                   autocomplete="new-password" autocapitalize="none" spellcheck="false"
+                   autocorrect="off" inputmode="text" data-lpignore="true" data-form-type="other"
+                   name="t2-${Math.random()}">
+
+            <div id="typing2-feedback" class="feedback-msg" style="margin-top: 5px; height: 20px;"></div>
+
+            <button class="btn-action btn-icon-only" onclick="window.checkTyping2()" title="Verificar">✅</button>
+
+            <div class="typing-nav" style="margin-top: 10px;">
+                <div class="nav-circle" style="width: 50px; height: 50px; font-size: 1.4rem;" onclick="window.typing2Speak()" title="Ouvir">🔊</div>
+                <div class="t2-steps" style="margin:0;">
+                    ${dotsHtml}
+                </div>
+                <div class="nav-circle" style="width: 50px; height: 50px; font-size: 1.2rem;" onclick="window.skipTyping2()" title="Pular">➡</div>
+            </div>
+        </div>
+    `;
+}
+
+window.typing2Speak = () => {
+    const seq = state.typing2Sequences[state.typing2SeqIndex];
+    const target = seq[state.typing2StepIndex];
+    // Mais lento que o Digitar 1 para facilitar compreensão
+    speak(target, target.includes(' ') ? 0.35 : 0.45);
+};
+
+window.checkTyping2 = () => {
+    const input = document.getElementById('typing2-input');
+    const feedback = document.getElementById('typing2-feedback');
+    const seq = state.typing2Sequences[state.typing2SeqIndex];
+    const target = seq[state.typing2StepIndex];
+    const card = document.querySelector('.typing-container');
+    const targetClean = normalizeText(target);
+    const typedClean = normalizeText(input.value);
+
+    if (typedClean === targetClean) {
+        state.combo++;
+        state.correctCount++;
+        const points = 5;
+        state.score += points;
+        localStorage.setItem('thun_score', state.score);
+        input.value = '';
+
+        if (state.score > state.dailyRecord) {
+            state.dailyRecord = state.score;
+            localStorage.setItem('thun_daily_record', state.dailyRecord);
+        }
+
+        feedback.innerHTML = `<span class="success-text">+${points} estrelas! 🌟</span>`;
+        card?.classList.add('animate-success');
+        playSound('success');
+        if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate(200);
+
+        setTimeout(() => { speak(target, target.includes(' ') ? 0.35 : 0.45); }, 800);
+
+        if (window.confetti) {
+            window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#fbbf24','#3b82f6','#10b981'] });
+        }
+
+        renderHeaderInPlace();
+
+        setTimeout(() => {
+            card?.classList.remove('animate-success');
+            // Advance step
+            if (state.typing2StepIndex < seq.length - 1) {
+                state.typing2StepIndex++;
+                render();
+                setTimeout(() => document.getElementById('typing2-input')?.focus(), 100);
+            } else {
+                // Sequence complete
+                if (state.typing2SeqIndex < state.typing2Sequences.length - 1) {
+                    state.typing2SeqIndex++;
+                } else {
+                    state.typing2Sequences = buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5));
+                    state.typing2SeqIndex = 0;
+                }
+                state.typing2StepIndex = 0;
+                render();
+                setTimeout(() => document.getElementById('typing2-input')?.focus(), 100);
+            }
+        }, 1600);
+
+    } else {
+        state.combo = 0;
+        input.classList.add('animate-shake');
+        document.body.classList.add('bg-error');
+        playSound('error');
+        if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        setTimeout(() => {
+            input.classList.remove('animate-shake');
+            document.body.classList.remove('bg-error');
+        }, 800);
+        input.placeholder = target;
+        setTimeout(() => { input.placeholder = '...'; }, 2000);
+        render(); // update combo badge
+
+        if (targetClean.includes(' ')) {
+            const targetWords = targetClean.split(' ');
+            const typedWords = typedClean.split(' ');
+            let resultHtml = '<span>';
+            let correctWords = [];
+            for (let i = 0; i < targetWords.length; i++) {
+                if (typedWords[i] === targetWords[i]) {
+                    resultHtml += `<span class="success-text">${targetWords[i]} </span>`;
+                    correctWords.push(targetWords[i]);
+                } else {
+                    resultHtml += `<span class="error-char">${typedWords[i] || '_'} </span>`;
+                }
+            }
+            resultHtml += '</span>';
+            const fb = document.getElementById('typing2-feedback');
+            if (fb) fb.innerHTML = resultHtml;
+            if (correctWords.length > 0) speak(correctWords.join(' '));
+        } else {
+            const fb = document.getElementById('typing2-feedback');
+            if (fb) fb.innerHTML = '<span class="error-char">Tente novamente</span>';
+        }
+    }
+};
+
+window.skipTyping2 = () => {
+    if (state.typing2SeqIndex < state.typing2Sequences.length - 1) {
+        state.typing2SeqIndex++;
+    } else {
+        state.typing2Sequences = buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5));
+        state.typing2SeqIndex = 0;
+    }
+    state.typing2StepIndex = 0;
+    render();
+};
+
+window.resetInactivityTimer2 = () => {
+    clearTimeout(state.inactivityTimer);
+    if (state.view !== 'typing2') return;
+    const container = document.getElementById('keyboard-hint-container');
+    if (container) {
+        container.innerHTML = '';
+        renderHeaderInPlace();
+    }
+    state.inactivityTimer = setTimeout(() => {
+        window.renderHintKeyboard2();
+    }, 4000);
+};
+
+window.renderHintKeyboard2 = () => {
+    const seq = state.typing2Sequences[state.typing2SeqIndex];
+    const target = seq[state.typing2StepIndex];
+    const input = document.getElementById('typing2-input');
+    if (!input) return;
+    const typed = normalizeText(input.value);
+    const targetNorm = normalizeText(target);
+    const nextChar = targetNorm[typed.length];
+    if (!nextChar) return;
+    const rows = [
+        ['q','w','e','r','t','y','u','i','o','p'],
+        ['a','s','d','f','g','h','j','k','l'],
+        ['z','x','c','v','b','n','m',' ']
+    ];
+    const keyboardHtml = `
+        <div class="virtual-keyboard">
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; text-align: center;">Procure esta tecla:</p>
+            ${rows.map(row => `
+                <div class="kbd-row">
+                    ${row.map(key => `
+                        <div class="kbd-key ${key === nextChar ? 'highlight' : ''}" style="${key === ' ' ? 'width: 60%; max-width: 250px;' : ''}">
+                            ${key === ' ' ? '' : key}
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    `;
+    const container = document.getElementById('keyboard-hint-container');
+    if (container) {
+        container.innerHTML = keyboardHtml;
+        renderHeaderInPlace();
+    }
+};
+
 // -- Controller --
 
 window.setView = (view) => {
@@ -485,6 +771,12 @@ window.setView = (view) => {
             input?.focus();
             window.resetInactivityTimer();
         }, 100);
+    }
+    if (view === 'typing2') {
+        setTimeout(() => {
+            document.getElementById('typing2-input')?.focus();
+            window.typing2Speak();
+        }, 200);
     }
 };
 
@@ -694,11 +986,10 @@ window.prevTyping = () => {
 function SummaryView() {
     return `
         <div class="summary-card animate-fade">
-            <h2>Sessão Concluída!</h2>
+            <div style="font-size: 4rem; margin-bottom: 10px;">🏆</div>
             <div class="star-rating">⭐⭐⭐</div>
-            <p style="margin-bottom: 20px;">Você mandou muito bem!</p>
-            <div class="menu-card ler" onclick="window.setView('home')" style="justify-content: center;">
-                <h3>Voltar ao Início</h3>
+            <div class="menu-card ler" onclick="window.setView('home')" style="justify-content: center; margin-top: 20px;">
+                <span style="font-size: 1.8rem;">🏠</span>
             </div>
         </div>
     `;
@@ -765,6 +1056,7 @@ function render() {
             case 'home': content = HomeView(); break;
             case 'reading': content = ReadingView(); break;
             case 'typing': content = TypingView(); break;
+            case 'typing2': content = Typing2View(); break;
             case 'matching': content = MatchingView(); break;
         }
     }
@@ -817,6 +1109,38 @@ function render() {
             window.resetInactivityTimer();
         });
         window.resetInactivityTimer();
+    }
+
+    // Typing2 listeners + auto-speak + all Digitar 1 effects
+    if (state.view === 'typing2') {
+        const input2 = document.getElementById('typing2-input');
+        input2?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') window.checkTyping2();
+        });
+        input2?.addEventListener('input', () => {
+            input2.value = input2.value.toLowerCase();
+            const seq = state.typing2Sequences[state.typing2SeqIndex];
+            const target = seq[state.typing2StepIndex];
+            const targetClean = normalizeText(target);
+            const typedClean = normalizeText(input2.value);
+            if (typedClean && !targetClean.startsWith(typedClean)) {
+                document.body.classList.add('bg-error');
+                if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate(100);
+                if (!state.lastCharWasError) {
+                    playSound('error');
+                    state.lastCharWasError = true;
+                }
+            } else {
+                document.body.classList.remove('bg-error');
+                state.lastCharWasError = false;
+            }
+            window.resetInactivityTimer2();
+        });
+        input2?.addEventListener('focus', () => {
+            document.getElementById('keyboard-hint-container').innerHTML = '';
+        });
+        setTimeout(() => { window.typing2Speak?.(); }, 350);
+        window.resetInactivityTimer2();
     }
 }
 
