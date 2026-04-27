@@ -46,12 +46,14 @@ body.bg-error {
 #app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh; /* Altura dinâmica do viewport */
+  width: 100%;
   max-width: 500px;
   margin: 0 auto;
   position: relative;
   background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(10px);
+  overflow: hidden;
 }
 
 /* Magnification in Reading */
@@ -71,7 +73,7 @@ header {
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: clamp(1.5rem, 6vw, 2.2rem);
   font-weight: 800;
   background: linear-gradient(to right, #818cf8, #f472b6);
   -webkit-background-clip: text;
@@ -94,21 +96,21 @@ main::-webkit-scrollbar {
 
 /* Navigation Bar */
 .bottom-nav {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 40px);
-  max-width: 400px;
-  background: var(--surface);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: rgba(30, 41, 59, 0.9);
+  backdrop-filter: blur(20px);
   display: flex;
   justify-content: space-around;
-  padding: 14px 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-  z-index: 100;
+  align-items: center;
+  padding: 10px 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+  z-index: 1000;
 }
 
 .nav-item {
@@ -116,12 +118,11 @@ main::-webkit-scrollbar {
   flex-direction: column;
   align-items: center;
   color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 600;
-  gap: 4px;
   cursor: pointer;
+  padding: 8px;
   transition: var(--transition);
+  position: relative;
+  opacity: 0.6;
 }
 
 .nav-item.active {
@@ -730,4 +731,49 @@ main::-webkit-scrollbar {
 
 @keyframes drawLine {
   to { stroke-dashoffset: 0; }
+}
+
+/* Animations for Flashcards */
+.pulse-slow {
+  animation: pulseSlow 3s infinite;
+}
+
+@keyframes pulseSlow {
+  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+  70% { box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+
+.pulse-green {
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.animate-pop {
+  animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Flashcard Option Feedback */
+.flashcard-option-correct {
+  background: rgba(16, 185, 129, 0.4) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+  transition: all 0.3s ease;
+}
+
+.flashcard-option-wrong {
+  background: rgba(239, 68, 68, 0.4) !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  transition: all 0.3s ease;
 }

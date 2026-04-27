@@ -1,17 +1,11 @@
 import './style.css'
 
 const words = [
-    "ele", "ela", "minha",
-    "bom dia", "boa noite", "oi", 
-    "beijo", "não", "Deus", 
-    "que hora", 
-    "casa", 
-    "seguir", "seguir de volta", "curtir", "bloquear", "apagar",
-    "gasolina", "carro", "moto", "limão",
-    "mangabeira", "você", "tu", "que dia", "sim", "amanhã", "vamos", "eu", 
-    "cruz das almas", "excluir", "bom", "hoje", "boa tarde", "status", "aceitar", 
-    "ontem", "cabaceiras", "boa", "meu", "lá", "obrigado", "estou em casa", 
-    "vou sair", "story", "trabalhar", "vou", "tudo bem ?", "to bem e você?", "nome"
+    "bom", "dia", "boa", "tarde", "noite", "oi", "tudo bem ?", "to bem e você?", "nome", "obrigado", 
+    "sim", "não", "carro", "sair", "trabalhar", "vou", "vamos", "story", "curtir", "seguir", 
+    "bloquear", "apagar", "excluir", "aceitar", "hoje", "amanhã", "ontem", "casa", "eu", "você", 
+    "tu", "ele", "ela", "preço", "video", "áudio", "agora", "seu", "sua", "chamada", 
+    "lá", "ligação", "reais", "quero", "senha", "ta certo"
 ];
 
 // Frases contextuais: SOMENTE palavras que já existem no vocabulário do app
@@ -30,27 +24,26 @@ const contextPhrases = [
     "vou curtir story",
     "vou seguir você",
     "vou bloquear ele",
-    "vou bloquear você",
+    "vou bloquear ela",
     "vou apagar story",
     "vou excluir story",
     "não vou aceitar",
     "sim vou aceitar",
-    // lugares com vamos
-    "vamos cabaceiras",
-    "vamos mangabeira",
-    "vamos cruz das almas",
-    // coisas + meu / minha + lá
-    "meu carro lá",
-    "minha moto lá",
-    "meu carro moto lá",
-    // bom dia / boa tarde + vamos
-    "bom dia vamos trabalhar",
-    "boa tarde vamos sair",
-    // outras combinações naturais
+    // chamadas e áudio (novas)
+    "quero áudio agora",
+    "sua chamada agora",
+    "vou agora sair",
+    "ele quer preço",
+    "ela quer preço",
+    "preço reais agora",
+    "senha agora agora",
+    // bom dia / boa tarde
+    "bom dia",
+    "boa tarde",
+    "boa noite",
+    "ta certo obrigado",
     "sim obrigado",
     "não obrigado",
-    "ele curtir story",
-    "ela curtir story",
 ];
 
 function getDailyShuffledWords() {
@@ -120,10 +113,26 @@ let state = {
     selectedMatch: null,
     matchedIds: [],
     errorMatch: null,
-    typing2Sequences: buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5)),
+    typingWords: [...words].sort(() => Math.random() - 0.5),
+    typingIndex: 0,
+    // Digitar 2 focado nas frases contextuais com progressão
+    typing2Sequences: buildTyping2Sequences([...contextPhrases].sort(() => Math.random() - 0.5)),
     typing2SeqIndex: 0,
-    typing2StepIndex: 0
+    typing2StepIndex: 0,
+    flashcardsPool: [...words].sort(() => Math.random() - 0.5),
+    flashcardIndex: 0,
+    flashcardFlipped: false,
+    flashcardOptions: []
 };
+
+// -- Flashcards Logic --
+function getFlashcardDistractor(correctWord) {
+    const len = correctWord.length;
+    // Tenta achar uma palavra com a mesma quantidade de letras, ou próxima
+    const distractors = words.filter(w => w !== correctWord && Math.abs(w.length - len) <= 1);
+    if (distractors.length === 0) return words.find(w => w !== correctWord);
+    return distractors[Math.floor(Math.random() * distractors.length)];
+}
 
 // -- Utilities --
 let preferredVoice = null;
@@ -144,6 +153,7 @@ window.speechSynthesis.onvoiceschanged = loadVoices;
 loadVoices();
 
 function playSound(type) {
+    if (type === 'success') return; // Silenciado para não atrapalhar a compreensão
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -187,16 +197,19 @@ function playSound(type) {
     osc.stop(ctx.currentTime + 0.2);
 }
 
-function speak(text, rate = 0.6) {
+window.speak = (text, rate = 0.9) => {
     window.speechSynthesis.cancel();
     const msg = new SpeechSynthesisUtterance(text);
     msg.lang = 'pt-BR';
     msg.rate = rate;
-    msg.pitch = 1.1; // Sutilmente mais agudo para soar mais feminino/suave
+    msg.pitch = 1.1; 
     if (preferredVoice) msg.voice = preferredVoice;
     window.speechSynthesis.speak(msg);
     return msg;
-}
+};
+
+// Atalho para usar em templates HTML com segurança
+const s = (txt) => txt.replace(/'/g, "\\'");
 
 function normalizeText(text) {
     return text.toLowerCase()
@@ -207,13 +220,13 @@ function normalizeText(text) {
 // -- Components --
 
 window.handleBack = () => {
-    if (state.view === 'home') {
+    if (state.view === "home") {
         if (confirm("Deseja sair do Thun?")) {
             window.close();
             window.location.href = "about:blank";
         }
     } else {
-        window.setView('home');
+        window.setView("home");
     }
 };
 
@@ -223,6 +236,7 @@ function renderHeader() {
     if (state.view === 'typing') title = "Digitar 1";
     if (state.view === 'typing2') title = "Digitar 2";
     if (state.view === 'matching') title = "Ligar";
+    if (state.view === 'flashcards') title = "Flashcards";
     
     const isHintVisible = !!document.getElementById('keyboard-hint-container')?.innerHTML;
 
@@ -277,6 +291,9 @@ function renderBottomNav() {
             <div class="nav-item ${state.view === 'matching' ? 'active' : ''}" onclick="window.setView('matching')" title="Ligar">
                 <span class="nav-icon">🔗</span>
             </div>
+            <div class="nav-item ${state.view === 'flashcards' ? 'active' : ''}" onclick="window.setView('flashcards')" title="Cards">
+                <span class="nav-icon">🎴</span>
+            </div>
         </nav>
     `;
 }
@@ -318,6 +335,14 @@ function HomeView() {
                 <div style="display:flex; flex-direction:column; gap:2px;">
                     <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
                     <h3>🎧 Digitar 2</h3>
+                </div>
+            </div>
+
+            <div class="menu-card" onclick="window.setView('flashcards')" style="margin-top: 15px; border-color: #ec4899;">
+                <div class="icon-box" style="background: rgba(236, 72, 153, 0.1); color: #ec4899; font-size:2.2rem;">🎴</div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
+                    <h3>🎴 Flashcards</h3>
                 </div>
             </div>
         </div>
@@ -556,8 +581,9 @@ function Typing2View() {
     // Build phrase display: previous words dim, new word highlighted
     const parts = currentTarget.split(' ');
     const phraseHtml = parts.map((word, i) => {
-        const isNew = isPhrase && i === parts.length - 1;
-        return `<span class="t2-word ${isNew ? 't2-word-new' : 't2-word-old'}">${word}</span>`;
+        const isNew = i === parts.length - 1;
+        // Se for a última palavra da etapa atual, destaca. Se for anterior, fica cinza.
+        return `<span class="${isNew ? 't2-word-new' : 't2-word-old'}" style="${isNew ? '' : 'color: rgba(255,255,255,0.3); font-weight: 400;'}">${word}</span>`;
     }).join(' ');
 
     // Progress dots (only for multi-step phrases)
@@ -586,24 +612,34 @@ function Typing2View() {
 
             <div id="typing2-feedback" class="feedback-msg" style="margin-top: 5px; height: 20px;"></div>
 
-            <button class="btn-action btn-icon-only" onclick="window.checkTyping2()" title="Verificar">✅</button>
-
-            <div class="typing-nav" style="margin-top: 10px;">
-                <div class="nav-circle" style="width: 50px; height: 50px; font-size: 1.4rem;" onclick="window.typing2Speak()" title="Ouvir">🔊</div>
-                <div class="t2-steps" style="margin:0;">
-                    ${dotsHtml}
-                </div>
-                <div class="nav-circle" style="width: 50px; height: 50px; font-size: 1.2rem;" onclick="window.skipTyping2()" title="Pular">➡</div>
+            <div class="typing-nav" style="margin-top: 25px;">
+                <div class="nav-circle" onclick="window.prevTyping2()" title="Voltar">⬅</div>
+                <button class="btn-action pulse-green" onclick="window.checkTyping2(true)" style="width: auto; padding: 15px 35px; border-radius: 40px;">✅</button>
+                <div class="nav-circle" onclick="window.skipTyping2()" title="Pular">➡</div>
+            </div>
+            
+            <div class="t2-steps" style="margin-top: 15px;">
+                ${dotsHtml}
             </div>
         </div>
     `;
 }
 
+window.prevTyping2 = () => {
+    if (state.typing2SeqIndex > 0) {
+        state.typing2SeqIndex--;
+    } else {
+        state.typing2SeqIndex = state.typing2Sequences.length - 1;
+    }
+    state.typing2StepIndex = 0;
+    render();
+    setTimeout(() => { window.typing2Speak?.(); }, 350);
+};
+
 window.typing2Speak = () => {
     const seq = state.typing2Sequences[state.typing2SeqIndex];
     const target = seq[state.typing2StepIndex];
-    // Mais lento que o Digitar 1 para facilitar compreensão
-    speak(target, target.includes(' ') ? 0.35 : 0.45);
+    window.speak(target, target.includes(' ') ? 0.8 : 0.9);
 };
 
 window.checkTyping2 = () => {
@@ -633,7 +669,7 @@ window.checkTyping2 = () => {
         playSound('success');
         if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate(200);
 
-        setTimeout(() => { speak(target, target.includes(' ') ? 0.35 : 0.45); }, 800);
+        // Removido fala ao acertar para focar na próxima palavra
 
         if (window.confetti) {
             window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#fbbf24','#3b82f6','#10b981'] });
@@ -653,14 +689,14 @@ window.checkTyping2 = () => {
                 if (state.typing2SeqIndex < state.typing2Sequences.length - 1) {
                     state.typing2SeqIndex++;
                 } else {
-                    state.typing2Sequences = buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5));
+                    state.typing2Sequences = buildTyping2Sequences([...contextPhrases].sort(() => Math.random() - 0.5));
                     state.typing2SeqIndex = 0;
                 }
                 state.typing2StepIndex = 0;
                 render();
                 setTimeout(() => document.getElementById('typing2-input')?.focus(), 100);
             }
-        }, 1600);
+        }, 800);
 
     } else {
         state.combo = 0;
@@ -704,7 +740,7 @@ window.skipTyping2 = () => {
     if (state.typing2SeqIndex < state.typing2Sequences.length - 1) {
         state.typing2SeqIndex++;
     } else {
-        state.typing2Sequences = buildTyping2Sequences([...words, ...contextPhrases].sort(() => Math.random() - 0.5));
+        state.typing2Sequences = buildTyping2Sequences([...contextPhrases].sort(() => Math.random() - 0.5));
         state.typing2SeqIndex = 0;
     }
     state.typing2StepIndex = 0;
@@ -759,7 +795,117 @@ window.renderHintKeyboard2 = () => {
     }
 };
 
-// -- Controller --
+// -- Flashcards View --
+function FlashcardsView() {
+    const currentWord = state.flashcardsPool[state.flashcardIndex];
+    
+    if (!state.flashcardFlipped) {
+        return `
+            <div class="flashcard-container animate-fade" style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1;">
+                <div class="flashcard-front" style="text-align:center;">
+                    <button class="btn-listen pulse-slow" onclick="window.speak('${s(currentWord)}', 0.9)" style="width:160px; height:160px; font-size:4rem; border-radius:50%; background:var(--glass); border:4px solid var(--primary); box-shadow:0 0 30px rgba(99,102,241,0.3);">🔊</button>
+                    <p style="color:var(--text-muted); margin-top:30px; font-weight:600; font-size:1.2rem;">Ouça e repita</p>
+                </div>
+                <div class="typing-nav" style="margin-top: 60px;">
+                    <div class="nav-circle" style="width:60px; height:60px; font-size:1.5rem;" onclick="window.prevFlashcard()">⬅</div>
+                    <button class="btn-action pulse-green" onclick="window.flipFlashcard()" style="width: auto; padding: 18px 45px; border-radius: 50px; font-size:1.1rem;">VER ✅</button>
+                    <div class="nav-circle" style="width:60px; height:60px; font-size:1.5rem;" onclick="window.nextFlashcard()">➡</div>
+                </div>
+            </div>
+        `;
+    } else {
+        return `
+            <div class="flashcard-container animate-fade" style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1;">
+                <div class="flashcard-back" style="width:100%; text-align:center;">
+                    <button class="btn-listen" onclick="window.speak('${s(currentWord)}', 0.9)" style="width:100px; height:100px; font-size:2.5rem; border-radius:50%; background:var(--glass); border:2px solid var(--primary); margin-bottom:40px;">🔊</button>
+                    <div style="display:flex; flex-direction:column; gap:20px; width:100%;">
+                        ${state.flashcardOptions.map(opt => {
+                            let statusClass = "";
+                            if (state.flashcardChecked === opt) {
+                                statusClass = opt === currentWord ? "flashcard-option-correct" : "flashcard-option-wrong";
+                            }
+                            return `<div class="menu-card animate-pop ${statusClass}" 
+                                         onclick="window.checkFlashcard('${opt}')" 
+                                         style="justify-content:center; padding:30px; border-width:4px; border-color:rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); pointer-events: ${state.flashcardChecking ? 'none' : 'auto'};">
+                                        <h3 style="font-size:2rem; letter-spacing:1px;">${opt}</h3>
+                                    </div>`;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="typing-nav" style="margin-top: 40px; justify-content:center;">
+                    <div class="nav-circle" style="width:60px; height:60px; font-size:1.8rem;" onclick="state.flashcardFlipped=false; state.flashcardChecking=false; state.flashcardChecked=null; render();">↺</div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+window.flipFlashcard = () => {
+    const currentWord = state.flashcardsPool[state.flashcardIndex];
+    const distractor = getFlashcardDistractor(currentWord);
+    state.flashcardOptions = [currentWord, distractor].sort(() => Math.random() - 0.5);
+    state.flashcardFlipped = true;
+    render();
+};
+
+window.checkFlashcard = (selected) => {
+    if (state.flashcardChecking) return;
+    
+    const correct = state.flashcardsPool[state.flashcardIndex];
+    state.flashcardChecking = true;
+    state.flashcardChecked = selected;
+    
+    if (selected === correct) {
+        state.score += 10;
+        localStorage.setItem('thun_score', state.score);
+        // Sem som de sucesso, apenas visual
+        if (window.confetti) window.confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate(200);
+        
+        render(); // Mostra o verde imediatamente
+        
+        setTimeout(() => {
+            state.flashcardChecking = false;
+            state.flashcardChecked = null;
+            window.nextFlashcard();
+        }, 2700); // 2.7 segundos para o verde
+    } else {
+        playSound('error');
+        document.body.classList.add('bg-error');
+        if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        
+        render(); // Mostra o vermelho imediatamente
+        
+        setTimeout(() => {
+            document.body.classList.remove('bg-error');
+            state.flashcardChecking = false;
+            state.flashcardChecked = null;
+            render(); // Reseta para tentar novamente
+        }, 2000); // 2.0 segundos para o vermelho
+    }
+};
+
+window.nextFlashcard = () => {
+    state.flashcardFlipped = false;
+    if (state.flashcardIndex < state.flashcardsPool.length - 1) {
+        state.flashcardIndex++;
+    } else {
+        state.flashcardsPool = [...words].sort(() => Math.random() - 0.5);
+        state.flashcardIndex = 0;
+    }
+    render();
+    setTimeout(() => window.speak(state.flashcardsPool[state.flashcardIndex], 0.9), 300);
+};
+
+window.prevFlashcard = () => {
+    state.flashcardFlipped = false;
+    if (state.flashcardIndex > 0) {
+        state.flashcardIndex--;
+        render();
+        setTimeout(() => window.speak(state.flashcardsPool[state.flashcardIndex], 0.9), 300);
+    }
+};
+
 
 window.setView = (view) => {
     state.view = view;
@@ -899,9 +1045,7 @@ window.checkTyping = () => {
         playSound('success');
         if (state.vibrationEnabled && navigator.vibrate) navigator.vibrate(200);
         
-        setTimeout(() => {
-            speak(target);
-        }, 800);
+        window.speak(target, 0.9); // Fala imediata
         
         if (window.confetti) {
             window.confetti({
@@ -1058,6 +1202,7 @@ function render() {
             case 'typing': content = TypingView(); break;
             case 'typing2': content = Typing2View(); break;
             case 'matching': content = MatchingView(); break;
+            case 'flashcards': content = FlashcardsView(); break;
         }
     }
 
@@ -1139,8 +1284,21 @@ function render() {
         input2?.addEventListener('focus', () => {
             document.getElementById('keyboard-hint-container').innerHTML = '';
         });
-        setTimeout(() => { window.typing2Speak?.(); }, 350);
+        // Só fala a palavra se o áudio não estiver ocupado (evita interromper a voz de acerto)
+        if (!window.speechSynthesis.speaking) {
+            setTimeout(() => { window.typing2Speak?.(); }, 150);
+        }
         window.resetInactivityTimer2();
+    }
+
+    if (state.view === 'flashcards') {
+        // Auto-speak on first entry
+        if (!state.flashcardStarted) {
+            state.flashcardStarted = true;
+            setTimeout(() => window.speak(state.flashcardsPool[state.flashcardIndex], 0.9), 500);
+        }
+    } else {
+        state.flashcardStarted = false;
     }
 }
 
