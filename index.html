@@ -2,6 +2,11 @@
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
+    <!-- Prevenir cache do index.html -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Aprender e Treinar</title>
@@ -10,22 +15,33 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+      // FORÇAR ATUALIZAÇÃO NOS DISPOSITIVOS
+      // Altere esta versão sempre que fizer um novo deploy no Github
+      const APP_VERSION = '1.0.1'; 
+      
+      const currentVersion = localStorage.getItem('thun_app_version');
+      if (currentVersion !== APP_VERSION) {
+        // Limpar caches antigos
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            for(let registration of registrations) {
+              registration.unregister();
+            }
+          });
+        }
+        caches.keys().then(names => {
+          for (let name of names) caches.delete(name);
+        });
+        
+        // Atualizar versão e forçar reload recarregando tudo da rede
+        localStorage.setItem('thun_app_version', APP_VERSION);
+        window.location.reload(true);
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    <script>
-      // Limpeza forçada de cache e service workers para o teste
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for(let registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
-      caches.keys().then(names => {
-        for (let name of names) caches.delete(name);
-      });
-    </script>
   </body>
 </html>

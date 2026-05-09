@@ -300,7 +300,7 @@ function renderBottomNav() {
 
 function HomeView() {
     return `
-        <div class="home-container animate-fade" style="justify-content: center; height: 100%; display: flex; flex-direction: column; padding-top: 20px;">
+        <div class="home-container animate-fade" style="display: flex; flex-direction: column; padding-top: 20px; padding-bottom: 40px;">
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px;">🏆 Recorde</p>
                 <h2 style="font-size: 2.8rem; color: #fbbf24;">⭐ ${state.dailyRecord}</h2>
