@@ -59,7 +59,7 @@ function getDailyShuffledWords() {
     return shuffled;
 }
 
-const readingWords = getDailyShuffledWords();
+
 const typingWords = [...words].sort(() => Math.random() - 0.5);
 
 // -- Typing2: Progressive builder --
@@ -98,7 +98,7 @@ function getInitialScore() {
 
 let state = {
     view: 'home',
-    readingPage: 1,
+
     typingIndex: 0,
     typingWords: typingWords,
     timers: [],
@@ -232,7 +232,7 @@ window.handleBack = () => {
 
 function renderHeader() {
     let title = "";
-    if (state.view === 'reading') title = "Ler";
+
     if (state.view === 'typing') title = "Digitar 1";
     if (state.view === 'typing2') title = "Digitar 2";
     if (state.view === 'matching') title = "Ligar";
@@ -279,9 +279,7 @@ function renderBottomNav() {
             <div class="nav-item ${state.view === 'home' ? 'active' : ''}" onclick="window.setView('home')" title="Início">
                 <span class="nav-icon">🏠</span>
             </div>
-            <div class="nav-item ${state.view === 'reading' ? 'active' : ''}" onclick="window.setView('reading')" title="Ler">
-                <span class="nav-icon">📖</span>
-            </div>
+
             <div class="nav-item ${state.view === 'typing' ? 'active' : ''}" onclick="window.setView('typing')" title="Digitar 1">
                 <span class="nav-icon">⌨️</span>
             </div>
@@ -304,14 +302,6 @@ function HomeView() {
             <div style="text-align: center; margin-bottom: 20px;">
                 <p style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px;">🏆 Recorde</p>
                 <h2 style="font-size: 2.8rem; color: #fbbf24;">⭐ ${state.dailyRecord}</h2>
-            </div>
-
-            <div class="menu-card ler" onclick="window.setView('reading')">
-                <div class="icon-box" style="font-size:2.2rem;">📖</div>
-                <div style="display:flex; flex-direction:column; gap:2px;">
-                    <span style="font-size:0.7rem; color:var(--text-muted); letter-spacing:1px; text-transform:uppercase;">Modo</span>
-                    <h3>📖 Ler</h3>
-                </div>
             </div>
 
             <div class="menu-card ligar" onclick="window.setView('matching')" style="margin-top: 15px; border-color: var(--secondary);">
@@ -349,38 +339,7 @@ function HomeView() {
     `;
 }
 
-function ReadingView() {
-    const itemsPerPage = 12;
-    const startIndex = (state.readingPage - 1) * itemsPerPage;
-    const pageWords = readingWords.slice(startIndex, startIndex + itemsPerPage);
-    
-    let gridHtml = pageWords.map((word, i) => {
-        const parts = word.split(' ');
-        const wordSpans = parts.map((p, idx) => `<span class="word-span" id="span-${i}-${idx}">${p}${idx < parts.length - 1 ? '&nbsp;' : ''}</span>`).join('');
-        return `
-            <div class="word-card" id="word-${i}" onclick="window.handleReadingClick('${word}', ${i}, ${parts.length})">
-                ${wordSpans}
-            </div>
-        `;
-    }).join('');
 
-    let paginationHtml = [1, 2, 3, 4].map(p => `
-        <div class="nav-circle pagination-dot" 
-             style="${state.readingPage === p ? 'background: var(--primary); border-color: var(--primary); width:18px; height:18px;' : 'width:12px; height:12px;'}"
-             onclick="window.setReadingPage(${p})"></div>
-    `).join('');
-
-    return `
-        <div class="animate-fade">
-            <div class="reading-grid">
-                ${gridHtml}
-            </div>
-            <div class="typing-nav" style="margin-top: 30px; justify-content: center; gap: 15px;">
-                ${paginationHtml}
-            </div>
-        </div>
-    `;
-}
 
 function TypingView() {
     const currentWord = state.typingWords[state.typingIndex];
@@ -715,23 +674,30 @@ window.checkTyping2 = () => {
         if (targetClean.includes(' ')) {
             const targetWords = targetClean.split(' ');
             const typedWords = typedClean.split(' ');
-            let resultHtml = '<span>';
             let correctWords = [];
+            fb.innerHTML = ''; // Clear previous
+            
+            const resultWrapper = document.createElement('span');
             for (let i = 0; i < targetWords.length; i++) {
+                const wordSpan = document.createElement('span');
                 if (typedWords[i] === targetWords[i]) {
-                    resultHtml += `<span class="success-text">${targetWords[i]} </span>`;
+                    wordSpan.className = 'success-text';
+                    wordSpan.textContent = targetWords[i] + ' ';
                     correctWords.push(targetWords[i]);
                 } else {
-                    resultHtml += `<span class="error-char">${typedWords[i] || '_'} </span>`;
+                    wordSpan.className = 'error-char';
+                    wordSpan.textContent = (typedWords[i] || '_') + ' ';
                 }
+                resultWrapper.appendChild(wordSpan);
             }
-            resultHtml += '</span>';
-            const fb = document.getElementById('typing2-feedback');
-            if (fb) fb.innerHTML = resultHtml;
+            fb.appendChild(resultWrapper);
             if (correctWords.length > 0) speak(correctWords.join(' '));
         } else {
             const fb = document.getElementById('typing2-feedback');
-            if (fb) fb.innerHTML = '<span class="error-char">Tente novamente</span>';
+            if (fb) {
+                fb.textContent = 'Tente novamente';
+                fb.className = 'feedback-msg error-char';
+            }
         }
     }
 };
@@ -980,42 +946,7 @@ window.renderHintKeyboard = () => {
     }
 };
 
-window.setReadingPage = (page) => {
-    state.readingPage = page;
-    render();
-};
 
-window.handleReadingClick = (word, wordIdx, partsCount) => {
-    state.timers.forEach(t => clearTimeout(t));
-    state.timers = [];
-    
-    // Clear all highlights
-    document.querySelectorAll('.word-span').forEach(s => s.classList.remove('word-highlight'));
-    document.querySelectorAll('.word-card').forEach(c => c.classList.remove('active-reading'));
-    
-    const card = document.getElementById(`word-${wordIdx}`);
-    if (card) card.classList.add('active-reading');
-    
-    const ehFrase = partsCount > 1;
-    speak(word, ehFrase ? 0.45 : 0.65);
-    
-    const delay = ehFrase ? 750 : 500;
-    for (let i = 0; i < partsCount; i++) {
-        let t = setTimeout(() => {
-            document.querySelectorAll('.word-span').forEach(s => s.classList.remove('word-highlight'));
-            const span = document.getElementById(`span-${wordIdx}-${i}`);
-            if (span) span.classList.add('word-highlight');
-        }, i * delay);
-        state.timers.push(t);
-    }
-    
-    // Final clear
-    let finalT = setTimeout(() => {
-        document.querySelectorAll('.word-span').forEach(s => s.classList.remove('word-highlight'));
-        if (card) card.classList.remove('active-reading');
-    }, partsCount * delay + 500);
-    state.timers.push(finalT);
-};
 
 window.checkTyping = () => {
     const input = document.getElementById('typing-input');
@@ -1198,7 +1129,7 @@ function render() {
     } else {
         switch(state.view) {
             case 'home': content = HomeView(); break;
-            case 'reading': content = ReadingView(); break;
+
             case 'typing': content = TypingView(); break;
             case 'typing2': content = Typing2View(); break;
             case 'matching': content = MatchingView(); break;
